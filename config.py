@@ -33,6 +33,6 @@ class Config:
         self.cfg_dropout = 0.1     # 10% 的概率丢弃标签
 
         self.save_interval = 200  # 每多少个 epoch 保存一次备份
-        self.sample_interval = 2  # 每多少个 epoch 采样一次图片
+        self.sample_interval = 50  # 每多少个 epoch 采样一次图片
 
 
