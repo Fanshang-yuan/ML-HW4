@@ -28,7 +28,7 @@ def save_images(images, path, **kwargs):
     grid = torchvision.utils.make_grid(images, **kwargs)
     # 将 [-1, 1] 转换回 [0, 1] 
     ndarr = grid.permute(1, 2, 0).cpu().numpy()
-    im = (ndarr + 1) / 2.0  # 反归一化
+    im = (ndarr - ndarr.min()) / (ndarr.max() - ndarr.min() + 1e-5)
     im = (im * 255).clip(0, 255).astype('uint8')
     image = Image.fromarray(im)
     image.save(path)

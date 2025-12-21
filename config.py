@@ -6,7 +6,7 @@ class Config:
 
         # 训练参数
         self.run_name = "DDPM_Uncond_CIFAR10"
-        self.epochs = 2000
+        self.epochs = 20000
         self.batch_size = 512
         self.image_size = 32
         self.device = "cuda" if torch.cuda.is_available() else "cpu"

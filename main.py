@@ -28,9 +28,32 @@ def train(args):
 
     # 3. 初始化优化器
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2000, gamma=0.8)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=6e-5)
     mse = nn.MSELoss()
     diffusion = Diffusion(img_size=args.image_size, device=device)
+
+    # 从断点恢复训练 
+    start_epoch = 0
+    resume_path = os.path.join("models", args.run_name, "last.pth") 
+    if os.path.exists(resume_path):
+        logging.info(f"Resuming training from {resume_path}")
+        checkpoint = torch.load(resume_path)
+        # 处理可能存在的 module 前缀
+        state_dict = checkpoint['model_state_dict'] if 'model_state_dict' in checkpoint else checkpoint
+        new_state_dict = {}
+        for k, v in state_dict.items():
+            name = k[7:] if k.startswith('module.') else k
+            new_state_dict[name] = v
+        model.load_state_dict(new_state_dict)
+        ema_model.load_state_dict(new_state_dict) # EMA 同步加载
+        if 'optimizer_state_dict' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if 'epoch' in checkpoint:
+            start_epoch = checkpoint['epoch'] + 1
+            
+        logging.info(f"Loaded successfully! Starting from Epoch {start_epoch}")
+    else:
+        logging.info("No checkpoint found. Starting from scratch.")
     
     # 初始化 EMA 工具类 
     ema = EMA(beta=0.995) 
@@ -44,7 +67,7 @@ def train(args):
     
     logging.info(f"Starting training on {device} with EMA & AMP enabled.")
 
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         pbar = tqdm(dataloader, ncols=80, desc=f"Epoch {epoch+1}/{args.epochs}")
         
         batch_losses = [] 
@@ -91,103 +114,16 @@ def train(args):
             save_checkpoint(ema_model, optimizer, epoch, avg_loss, args.run_name, filename="best.pth")
             tqdm.write(f"New best model found at epoch {epoch+1} with loss {avg_loss:.5f}")
 
-        # 5. 定期存档 (每20轮)
-        if epoch > 0 and epoch % 20 == 0:
+        # 5. 定期存档 
+        if epoch > 0 and epoch % 200 == 0:
             save_filename = f"epoch_{epoch}.pth"
             save_checkpoint(ema_model, optimizer, epoch, avg_loss, args.run_name, filename=save_filename)
         
-        # 6. 生成预览图 (每5轮，生成32张)
-        if epoch % 10 == 0:
+        # 6. 生成预览图 
+        if epoch % 1 == 0:
             sampled_images = diffusion.sample(ema_model, n=32)
             save_images(sampled_images, os.path.join("results", args.run_name, f"{epoch}.jpg"))
 
 if __name__ == '__main__':
     cfg = Config()
     train(cfg)
-
-
-
-
-"""
-# 测试数据加载和预处理是否正确
-from config import Config
-from utils import get_data, save_images, setup_logging
-import torch
-
-def test_data_loading():
-    # 1. 初始化配置
-    cfg = Config()
-    setup_logging(cfg.run_name)
-    
-    # 2. 加载数据
-    print("正在加载数据...")
-    dataloader = get_data(cfg)
-    
-    # 3. 获取一个 Batch
-    images, labels = next(iter(dataloader))
-    print(f"数据加载成功！")
-    print(f"图片形状: {images.shape}") # 应该是 [64, 3, 32, 32]
-    print(f"数值范围: Min={images.min():.2f}, Max={images.max():.2f}") # 应该接近 -1 和 1
-    
-    # 4. 尝试保存图片（验证反归一化是否正确）
-    save_path = f"results/{cfg.run_name}/test_data.jpg"
-    save_images(images, save_path)
-    print(f"测试图片已保存至: {save_path}")
-
-if __name__ == '__main__':
-    test_data_loading()
-"""
-
-
-"""
-# 扩散效果测试
-from config import Config
-from utils import get_data, save_images, setup_logging
-from diffusion import Diffusion # 导入刚才写的类
-import torch
-
-def test_diffusion_process():
-    # 1. 初始化
-    cfg = Config()
-    setup_logging(cfg.run_name)
-    diffusion = Diffusion(img_size=cfg.image_size, device=cfg.device)
-    
-    # 2. 拿一个 batch 的数据
-    dataloader = get_data(cfg)
-    images, _ = next(iter(dataloader))
-    images = images.to(cfg.device)
-    
-    # 3. 设定我们要观察的时间点：原图 -> 加了一点噪 -> 加了很多噪 -> 纯噪
-    # 比如观察第 0步, 100步, 500步, 999步
-    t_steps = [0, 100, 500, 999] 
-    
-    noisy_images_list = []
-    
-    print("开始生成噪声演示图...")
-    for t_val in t_steps:
-        # 创建一个全是 t_val 的时间步张量
-        t = torch.full((images.shape[0],), t_val, device=cfg.device, dtype=torch.long)
-        
-        # 调用 noise_images 加噪
-        # 注意：如果是第0步，我们直接用原图
-        if t_val == 0:
-            x_t = images
-        else:
-            x_t, _ = diffusion.noise_images(images, t)
-            
-        # 取第一张图放进列表里展示
-        noisy_images_list.append(x_t[0]) 
-
-    # 4. 拼成一张大图保存 (4张图排成一排)
-    result = torch.stack(noisy_images_list, dim=0).unsqueeze(0) # 增加 batch 维度以适配 grid
-    # 此时 result shape 是 [1, 4, 3, 32, 32]，我们需要把它展平成 [4, 3, 32, 32]
-    result = result.view(-1, 3, 32, 32)
-    
-    save_path = f"results/{cfg.run_name}/diffusion_process.jpg"
-    save_images(result, save_path, nrow=4) # 一行4张
-    print(f"扩散过程演示图已保存至: {save_path}")
-
-if __name__ == '__main__':
-    test_diffusion_process()
-"""
-
