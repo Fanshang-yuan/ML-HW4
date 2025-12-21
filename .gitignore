@@ -6,3 +6,10 @@
 
 # 忽略数据文件夹的具体大文件
 data/
+/models
+/results
+
+# 忽略 Python 缓存文件夹和编译文件
+
+__pycache__/
+*.pyc
