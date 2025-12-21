@@ -26,13 +26,11 @@ class Diffusion:
     def sample_timesteps(self, n):
         return torch.randint(low=1, high=self.noise_steps, size=(n,), device=self.device)
 
-    # === 采样函数 ===
     def sample(self, model, n, labels=None, cfg_scale=3.0):
         logging.info(f"Sampling {n} new images....")
         model.eval()
         with torch.no_grad():
             x = torch.randn((n, 3, self.img_size, self.img_size)).to(self.device)
-            
             use_cfg = (labels is not None) and (cfg_scale > 1.0)
             
             for i in tqdm(reversed(range(1, self.noise_steps)), position=0, leave=True):
@@ -58,11 +56,10 @@ class Diffusion:
                 x = 1 / torch.sqrt(alpha) * (x - ((1 - alpha) / (torch.sqrt(1 - alpha_hat))) * predicted_noise) + torch.sqrt(beta) * noise
         
         model.train()
-        logging.info(f"Generated Raw Stats: Min={x.min():.4f}, Max={x.max():.4f}")
 
-        # 拉伸到 0-1
-        # x = (x - x.min()) / (x.max() - x.min() + 1e-5) 
-        # 映射到 0-255
-        # x = (x * 255).type(torch.uint8)
         
-        return x
+        # x = (x.clamp(-1, 1) + 1) / 2
+        # x = (x * 255).type(torch.uint8)
+
+
+        return x.clamp(-1, 1)

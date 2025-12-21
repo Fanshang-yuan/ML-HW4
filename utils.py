@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import pandas as pd
-# import logging
+import logging
 
 
 def setup_logging(run_name):
@@ -17,6 +17,17 @@ def setup_logging(run_name):
     os.makedirs("data", exist_ok=True)
     os.makedirs(os.path.join("models", run_name), exist_ok=True)
     os.makedirs(os.path.join("results", run_name), exist_ok=True)
+
+    log_file = os.path.join("results", run_name, "log.txt")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s: %(message)s",
+        datefmt="%I:%M:%S",
+        handlers=[
+            logging.FileHandler(log_file), # 保存到文件
+            logging.StreamHandler()        # 打印到控制台
+        ]
+    )
 
 def save_images(images, path, **kwargs):
     """
@@ -51,14 +62,14 @@ def get_data(args):
     dataloader = torch.utils.data.DataLoader(dataset, 
                                              batch_size=args.batch_size,
                                              shuffle=True,
-                                             num_workers=12,
+                                             num_workers=8,
                                              pin_memory=True,
                                              persistent_workers=True)
     
     return dataloader
 
 
-def save_checkpoint(model, optimizer, epoch, loss, run_name, filename):
+def save_checkpoint(model, optimizer, epoch, loss, run_name, filename, ema_model=None):
     """
     保存模型权重
     """
@@ -72,11 +83,26 @@ def save_checkpoint(model, optimizer, epoch, loss, run_name, filename):
     torch.save(checkpoint, save_path)
     #logging.info(f"Saved checkpoint: {save_path}") 
 
+    if ema_model is not None:
+        checkpoint['ema_model_state_dict'] = ema_model.state_dict()
+
+    save_path = os.path.join("models", run_name, filename)
+    torch.save(checkpoint, save_path)
+
+
+def save_csv(losses, run_name):
+    """
+    将 Loss 数据保存为 CSV，方便后续分析
+    """
+    df = pd.DataFrame({'epoch': range(1, len(losses) + 1), 'loss': losses})
+    df.to_csv(os.path.join("results", run_name, "loss_log.csv"), index=False)
 
 def plot_loss_curve(losses, run_name):
     """
     绘制 Loss 曲线
     """
+    save_csv(losses, run_name)
+
     plt.figure(figsize=(10, 6))
     
     # 设置字体为 Times New Roman 
