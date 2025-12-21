@@ -106,7 +106,7 @@ def plot_loss_curve(losses, run_name):
     plt.figure(figsize=(10, 6))
     
     # 设置字体为 Times New Roman 
-    plt.rcParams["font.family"] = "Times New Roman"
+    #plt.rcParams["font.family"] = "Times New Roman"
     plt.rcParams["font.size"] = 12
     
     plt.plot(losses, label='Training Loss', color='black', linewidth=1.5)

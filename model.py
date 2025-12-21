@@ -118,17 +118,14 @@ class UNet(nn.Module):
         
         # 32x32 -> 16x16
         self.down1 = Down(64, 128)
-        # 修正：特征图现在是 16x16
         self.sa1 = SelfAttention(128, 16) 
         
         # 16x16 -> 8x8
         self.down2 = Down(128, 256)
-        # 修正：特征图现在是 8x8
         self.sa2 = SelfAttention(256, 8) 
         
         # 8x8 -> 4x4
         self.down3 = Down(256, 256)
-        # 修正：特征图现在是 4x4
         self.sa3 = SelfAttention(256, 4) 
 
         self.bot1 = DoubleConv(256, 512)
@@ -142,17 +139,17 @@ class UNet(nn.Module):
         
         # 8x8 -> 16x16
         self.up2 = Up(256, 64)
-        # 修正：特征图现在是 16x16
+        # 特征图现在是 16x16
         self.sa5 = SelfAttention(64, 16) 
         
         # 16x16 -> 32x32
         self.up3 = Up(128, 64)
-        # 修正：特征图现在是 32x32 (这个原本是对的，但为了统一建议确认)
+        # 特征图现在是 32x32 
         self.sa6 = SelfAttention(64, 32) 
         
         self.outc = nn.Conv2d(64, c_out, kernel_size=1)
     
-    # ... (后面的 pos_encoding 和 forward 方法保持不变)
+
     def pos_encoding(self, t, channels):
         inv_freq = 1.0 / (10000 ** (torch.arange(0, channels, 2, device=self.device).float() / channels))
         pos_enc_a = torch.sin(t.repeat(1, channels // 2) * inv_freq)

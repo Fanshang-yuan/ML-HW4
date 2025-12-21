@@ -18,9 +18,9 @@ class Config:
         # self.beta_end = 0.02
 
         # 训练参数 DDPM_Cond_CIFAR10
-        self.run_name = "DDPM_Cond_CIFAR10" # 建议改个名，或者新建文件夹
-        self.epochs = 20000 # 根据需要设置
-        self.batch_size = 64 # 双卡4090可以开大一点，比如 24 或 32 (取决于显存)
+        self.run_name = "DDPM_Cond_CIFAR10" # 
+        self.epochs = 20000 # 
+        self.batch_size = 128 # 
         self.image_size = 32
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.lr = 3e-4
