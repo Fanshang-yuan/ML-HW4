@@ -108,7 +108,7 @@ def train(args):
         # 3. 保存最新权重
         save_checkpoint(ema_model, optimizer, epoch, avg_loss, args.run_name, filename="last.pth")
         
-        # 4. 保存最佳权重 (Best Model)
+        # 4. 保存最佳权重
         if avg_loss < best_loss:
             best_loss = avg_loss
             save_checkpoint(ema_model, optimizer, epoch, avg_loss, args.run_name, filename="best.pth")
@@ -120,7 +120,7 @@ def train(args):
             save_checkpoint(ema_model, optimizer, epoch, avg_loss, args.run_name, filename=save_filename)
         
         # 6. 生成预览图 
-        if epoch % 1 == 0:
+        if epoch % 200 == 0:
             sampled_images = diffusion.sample(ema_model, n=32)
             save_images(sampled_images, os.path.join("results", args.run_name, f"{epoch}.jpg"))
 
